@@ -13,7 +13,7 @@ export function App() {
   const { data: paginatedTransactions, ...paginatedTransactionsUtils } = usePaginatedTransactions()
   const { data: transactionsByEmployee, ...transactionsByEmployeeUtils } = useTransactionsByEmployee()
   const [isLoadingEmployee, setIsLoadingEmployee] = useState(false)
-  const [hasViewMoreButton, setHasViewMoreButton] = useState(true)
+  const [isFilteringByEmployee, setIsFilteringByEmployee] = useState(false)
 
   const transactions = useMemo(
     () => paginatedTransactions?.data ?? transactionsByEmployee ?? null,
@@ -26,10 +26,7 @@ export function App() {
     await employeeUtils.fetchAll()
     setIsLoadingEmployee(false)
 
-    await paginatedTransactionsUtils.fetchAll().then(() => {
-      setHasViewMoreButton(paginatedTransactions?.nextPage !== null);
-    })
-
+    await paginatedTransactionsUtils.fetchAll()
   }, [employeeUtils, paginatedTransactions, paginatedTransactionsUtils, transactionsByEmployeeUtils])
 
   const loadTransactionsByEmployee = useCallback(
@@ -42,14 +39,14 @@ export function App() {
 
   const handleEmployeeChange = useCallback(
     async (newValue: Employee | null) => {
+      setIsFilteringByEmployee(false)
       if (newValue === null) { // no employee selected
-        setHasViewMoreButton(true)
         return
       } else if (newValue.id === "") { // all employees
-        setHasViewMoreButton(true)
         await loadAllTransactions()
       } else { // specific employee
-        await loadTransactionsByEmployee(newValue.id).then(() => { setHasViewMoreButton(false) })
+        setIsFilteringByEmployee(true)
+        await loadTransactionsByEmployee(newValue.id)
       }
     },
     [loadAllTransactions, loadTransactionsByEmployee]
@@ -86,17 +83,18 @@ export function App() {
         <div className="RampGrid">
           <Transactions transactions={transactions} />
 
-          {transactions !== null && hasViewMoreButton && (
-            <button
-              className="RampButton"
-              disabled={paginatedTransactionsUtils.loading}
-              onClick={async () => {
-                await loadAllTransactions()
-              }}
-            >
-              View More
-            </button>
-          )}
+          {transactions !== null && !isFilteringByEmployee &&
+            paginatedTransactions?.nextPage !== null && (
+              <button
+                className="RampButton"
+                disabled={paginatedTransactionsUtils.loading}
+                onClick={async () => {
+                  await loadAllTransactions()
+                }}
+              >
+                View More
+              </button>
+            )}
         </div>
       </main>
     </Fragment>
